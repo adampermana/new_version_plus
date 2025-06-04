@@ -52,9 +52,9 @@ class VersionStatus {
   }
 
   //Public Contructor
-  VersionStatus({required this.localVersion, required this.storeVersion, required this.appStoreLink, this.releaseNotes, this.originalStoreVersion});
+  VersionStatus({required this.localVersion, required this.storeVersion, required this.appStoreLink, this.releaseNotes, this.originalStoreVersion, this.lastUpdateDate});
 
-  VersionStatus._({required this.localVersion, required this.storeVersion, required this.appStoreLink, this.releaseNotes, this.originalStoreVersion});
+  VersionStatus._({required this.localVersion, required this.storeVersion, required this.appStoreLink, this.releaseNotes, this.originalStoreVersion, this.lastUpdateDate});
 }
 
 class NewVersionPlus {
@@ -88,6 +88,9 @@ class NewVersionPlus {
 
   //Html original body request
   final bool androidHtmlReleaseNotes;
+
+  /// The last update date of the store version (only available for iOS)
+  final DateTime? lastUpdateDate;
 
   NewVersionPlus({this.androidId, this.iOSId, this.iOSAppStoreCountry, this.forceAppVersion, this.androidPlayStoreCountry, this.androidHtmlReleaseNotes = false});
 
@@ -163,12 +166,24 @@ class NewVersionPlus {
       debugPrint('Can\'t find an app in the App Store with the id: $id');
       return null;
     }
+
+    // Parse last update date from currentVersionReleaseDate
+    DateTime? lastUpdateDate;
+    try {
+      final releaseDateString = jsonObj['results'][0]['currentVersionReleaseDate'];
+      if (releaseDateString != null) {
+        lastUpdateDate = DateTime.parse(releaseDateString);
+      }
+    } catch (e) {
+      debugPrint('Failed to parse release date: $e');
+    }
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
       storeVersion: _getCleanVersion(forceAppVersion ?? jsonObj['results'][0]['version']),
       originalStoreVersion: forceAppVersion ?? jsonObj['results'][0]['version'],
       appStoreLink: jsonObj['results'][0]['trackViewUrl'],
       releaseNotes: jsonObj['results'][0]['releaseNotes'],
+      lastUpdateDate: lastUpdateDate,
     );
   }
 
@@ -211,12 +226,28 @@ class NewVersionPlus {
     final releaseNotes = regexpRelease.firstMatch(response.body)?.group(3);
     //final descriptionNotes = regexpDescription.firstMatch(response.body)?.group(2);
 
+    // Try to extract last update date for Android (this is more complex as it's in HTML)
+    DateTime? lastUpdateDate;
+    try {
+      // Look for date pattern in the HTML response
+      final dateRegex = RegExp(r'(\d{1,2}\s+\w+\s+\d{4})');
+      final dateMatch = dateRegex.firstMatch(response.body);
+      if (dateMatch != null) {
+        // This is a basic implementation - you might need to adjust based on locale
+        // The actual implementation would need more sophisticated date parsing
+        debugPrint('Found potential date: ${dateMatch.group(1)}');
+      }
+    } catch (e) {
+      debugPrint('Failed to parse Android update date: $e');
+    }
+    
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
       storeVersion: _getCleanVersion(forceAppVersion ?? storeVersion ?? ""),
       originalStoreVersion: forceAppVersion ?? storeVersion ?? "",
       appStoreLink: uri.toString(),
       releaseNotes: androidHtmlReleaseNotes ? _parseUnicodeToString(releaseNotes) : releaseNotes?.replaceAll(expRemoveSc, '').replaceAll(expRemoveQuote, '"'),
+      lastUpdateDate: lastUpdateDate,
     );
   }
 
