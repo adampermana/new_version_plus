@@ -224,13 +224,12 @@ class NewVersionPlus {
   Future<VersionStatus?> _getAndroidStoreVersion(
       PackageInfo packageInfo) async {
     final id = androidId ?? packageInfo.packageName;
-    // final uri = Uri.https("play.google.com", "/store/apps/details", {"id": id.toString(), "hl": androidPlayStoreCountry ?? "en_US"});
-    // final response = await http.get(uri);
     final uri = Uri.https("play.google.com", "/store/apps/details", {
       "id": id.toString(),
       "hl": androidPlayStoreCountry ?? "en_US",
       "timestamp": DateTime.now().millisecondsSinceEpoch.toString(),
     });
+
     http.Response response;
     try {
       response = await http.get(uri);
@@ -242,48 +241,23 @@ class NewVersionPlus {
     if (response.statusCode != 200) {
       throw Exception("Invalid response code: ${response.statusCode}");
     }
-    // Supports 1.2.3 (most of the apps) and 1.2.prod.3 (e.g. Google Cloud)
-    //final regexp = RegExp(r'\[\[\["(\d+\.\d+(\.[a-z]+)?\.\d+)"\]\]');
+
+    // Parse version
     final regexp =
         RegExp(r'\[\[\[\"(\d+\.\d+(\.[a-z]+)?(\.([^"]|\\")*)?)\"\]\]');
     final storeVersion = regexp.firstMatch(response.body)?.group(1);
 
-    //Description
-    //final regexpDescription = RegExp(r'\[\[(null,)\"((\.[a-z]+)?(([^"]|\\")*)?)\"\]\]');
-
-    //Release
+    // Parse release notes
     final regexpRelease =
         RegExp(r'\[(null,)\[(null,)\"((\.[a-z]+)?(([^"]|\\")*)?)\"\]\]');
-
     final expRemoveSc = RegExp(r"\\u003c[A-Za-z]{1,10}\\u003e",
         multiLine: true, caseSensitive: true);
-
     final expRemoveQuote =
         RegExp(r"\\u0026quot;", multiLine: true, caseSensitive: true);
-
     final releaseNotes = regexpRelease.firstMatch(response.body)?.group(3);
-    //final descriptionNotes = regexpDescription.firstMatch(response.body)?.group(2);
 
-    // Try to extract last update date for Android (this is more complex as it's in HTML)
-    DateTime? lastUpdateDate;
-    try {
-      // Look for date pattern in the HTML response
-      final dateRegex = RegExp(r'(\d{1,2}\s+\w+\s+\d{4})');
-      final dateMatch = dateRegex.firstMatch(response.body);
-      if (dateMatch != null) {
-        try {
-          lastUpdateDate = DateTime.parse(
-            DateFormat('d MMMM yyyy', 'en_US')
-                .parse(dateMatch.group(1)!)
-                .toIso8601String(),
-          );
-        } catch (e) {
-          debugPrint('Failed to parse dateMatch: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint('Failed to parse Android update date: $e');
-    }
+    // Enhanced date parsing for Android
+    DateTime? lastUpdateDate = _parseAndroidUpdateDate(response.body);
 
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
@@ -297,6 +271,113 @@ class NewVersionPlus {
               .replaceAll(expRemoveQuote, '"'),
       lastUpdateDate: lastUpdateDate,
     );
+  }
+
+  /// Parse Android update date from Google Play Store HTML
+  DateTime? _parseAndroidUpdateDate(String htmlBody) {
+    try {
+      // Multiple patterns to catch different date formats
+      final datePatterns = [
+        // Format: "Jan 15, 2024" or "January 15, 2024"
+        RegExp(r'"([A-Za-z]{3,9})\s+(\d{1,2}),\s+(\d{4})"'),
+        // Format: "15 Jan 2024" or "15 January 2024"
+        RegExp(r'"(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})"'),
+        // Format: "2024-01-15" (ISO format)
+        RegExp(r'"(\d{4})-(\d{2})-(\d{2})"'),
+        // Look for update date near version info
+        RegExp(
+            r'Updated[^"]*"([^"]*(\d{1,2}[^"]*[A-Za-z]{3,9}[^"]*\d{4})[^"]*)"',
+            caseSensitive: false),
+        // Alternative patterns for different locales
+        RegExp(r'(\d{1,2}\/\d{1,2}\/\d{4})'), // MM/dd/yyyy or dd/MM/yyyy
+        RegExp(r'(\d{4}\/\d{1,2}\/\d{1,2})'), // yyyy/MM/dd
+      ];
+
+      for (final pattern in datePatterns) {
+        final match = pattern.firstMatch(htmlBody);
+        if (match != null) {
+          final dateString = match.group(1) ?? match.group(0);
+          debugPrint('Found potential date string: $dateString');
+
+          final parsedDate = _tryParseDate(dateString!);
+          if (parsedDate != null) {
+            debugPrint('Successfully parsed date: $parsedDate');
+            return parsedDate;
+          }
+        }
+      }
+
+      // Try to find structured data (JSON-LD) which might contain update info
+      final jsonLdPattern = RegExp(
+          r'<script type="application/ld\+json">(.*?)</script>',
+          dotAll: true);
+      final jsonLdMatch = jsonLdPattern.firstMatch(htmlBody);
+      if (jsonLdMatch != null) {
+        try {
+          final jsonData = json.decode(jsonLdMatch.group(1)!);
+          // Look for dateModified, datePublished, or similar fields
+          final dateModified =
+              jsonData['dateModified'] ?? jsonData['datePublished'];
+          if (dateModified != null) {
+            return DateTime.parse(dateModified);
+          }
+        } catch (e) {
+          debugPrint('Failed to parse JSON-LD: $e');
+        }
+      }
+
+      debugPrint('No date pattern matched in Android HTML');
+      return null;
+    } catch (e) {
+      debugPrint('Error parsing Android update date: $e');
+      return null;
+    }
+  }
+
+  /// Try to parse various date formats
+  DateTime? _tryParseDate(String dateString) {
+    final cleanDate =
+        dateString.trim().replaceAll(RegExp(r'[^\w\s,\-\/:]'), '');
+
+    // List of date formats to try
+    final formats = [
+      'MMM d, yyyy', // Jan 15, 2024
+      'MMMM d, yyyy', // January 15, 2024
+      'd MMM yyyy', // 15 Jan 2024
+      'd MMMM yyyy', // 15 January 2024
+      'yyyy-MM-dd', // 2024-01-15
+      'MM/dd/yyyy', // 01/15/2024
+      'dd/MM/yyyy', // 15/01/2024
+      'yyyy/MM/dd', // 2024/01/15
+      'dd-MM-yyyy', // 15-01-2024
+      'MM-dd-yyyy', // 01-15-2024
+    ];
+
+    for (final format in formats) {
+      try {
+        final formatter = DateFormat(format, 'en_US');
+        return formatter.parse(cleanDate);
+      } catch (e) {
+        // Try next format
+        continue;
+      }
+    }
+
+    // Try with different locales if en_US fails
+    final locales = ['en_GB', 'en_AU', 'id_ID'];
+    for (final locale in locales) {
+      for (final format in formats) {
+        try {
+          final formatter = DateFormat(format, locale);
+          return formatter.parse(cleanDate);
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+
+    debugPrint('Failed to parse date string: $cleanDate');
+    return null;
   }
 
   /// Update action fun
