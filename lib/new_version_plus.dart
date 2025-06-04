@@ -27,6 +27,9 @@ class VersionStatus {
   /// The release notes for the store version of the app.
   final String? releaseNotes;
 
+  /// The last update date of the store version (optional).
+  final DateTime? lastUpdateDate;
+
   /// Returns `true` if the store version of the application is greater than the local version.
   bool get canUpdate {
     final local = localVersion.split('.').map(int.parse).toList();
@@ -52,9 +55,21 @@ class VersionStatus {
   }
 
   //Public Contructor
-  VersionStatus({required this.localVersion, required this.storeVersion, required this.appStoreLink, this.releaseNotes, this.originalStoreVersion, this.lastUpdateDate});
+  VersionStatus(
+      {required this.localVersion,
+      required this.storeVersion,
+      required this.appStoreLink,
+      this.releaseNotes,
+      this.originalStoreVersion,
+      this.lastUpdateDate});
 
-  VersionStatus._({required this.localVersion, required this.storeVersion, required this.appStoreLink, this.releaseNotes, this.originalStoreVersion, this.lastUpdateDate});
+  VersionStatus._(
+      {required this.localVersion,
+      required this.storeVersion,
+      required this.appStoreLink,
+      this.releaseNotes,
+      this.originalStoreVersion,
+      this.lastUpdateDate});
 }
 
 class NewVersionPlus {
@@ -92,16 +107,29 @@ class NewVersionPlus {
   /// The last update date of the store version (only available for iOS)
   final DateTime? lastUpdateDate;
 
-  NewVersionPlus({this.androidId, this.iOSId, this.iOSAppStoreCountry, this.forceAppVersion, this.androidPlayStoreCountry, this.androidHtmlReleaseNotes = false});
+  NewVersionPlus({
+    this.androidId,
+    this.iOSId,
+    this.iOSAppStoreCountry,
+    this.forceAppVersion,
+    this.androidPlayStoreCountry,
+    this.androidHtmlReleaseNotes = false,
+    this.lastUpdateDate,
+  });
 
   /// This checks the version status, then displays a platform-specific alert
   /// with buttons to dismiss the update alert, or go to the app store.
-  showAlertIfNecessary({required BuildContext context, LaunchModeVersion launchModeVersion = LaunchModeVersion.normal}) async {
+  showAlertIfNecessary(
+      {required BuildContext context,
+      LaunchModeVersion launchModeVersion = LaunchModeVersion.normal}) async {
     final VersionStatus? versionStatus = await getVersionStatus();
 
     if (versionStatus != null && versionStatus.canUpdate) {
       // ignore: use_build_context_synchronously
-      showUpdateDialog(context: context, versionStatus: versionStatus, launchModeVersion: launchModeVersion);
+      showUpdateDialog(
+          context: context,
+          versionStatus: versionStatus,
+          launchModeVersion: launchModeVersion);
     }
   }
 
@@ -115,14 +143,16 @@ class NewVersionPlus {
     } else if (Platform.isAndroid) {
       return _getAndroidStoreVersion(packageInfo);
     } else {
-      debugPrint('The target platform "${Platform.operatingSystem}" is not yet supported by this package.');
+      debugPrint(
+          'The target platform "${Platform.operatingSystem}" is not yet supported by this package.');
       return null;
     }
   }
 
   /// This function attempts to clean local version strings so they match the MAJOR.MINOR.PATCH
   /// versioning pattern, so they can be properly compared with the store version.
-  String _getCleanVersion(String version) => RegExp(r'\d+(\.\d+)?(\.\d+)?').stringMatch(version) ?? '0.0.0';
+  String _getCleanVersion(String version) =>
+      RegExp(r'\d+(\.\d+)?(\.\d+)?').stringMatch(version) ?? '0.0.0';
   // RegExp(r'\d+\.\d+(\.\d+)?').stringMatch(version) ?? '0.0.0';
   //RegExp(r'\d+\.\d+(\.[a-z]+)?(\.([^"]|\\")*)?').stringMatch(version) ?? '0.0.0'; \d+(\.\d+)?(\.\d+)?
 
@@ -170,7 +200,8 @@ class NewVersionPlus {
     // Parse last update date from currentVersionReleaseDate
     DateTime? lastUpdateDate;
     try {
-      final releaseDateString = jsonObj['results'][0]['currentVersionReleaseDate'];
+      final releaseDateString =
+          jsonObj['results'][0]['currentVersionReleaseDate'];
       if (releaseDateString != null) {
         lastUpdateDate = DateTime.parse(releaseDateString);
       }
@@ -179,7 +210,8 @@ class NewVersionPlus {
     }
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
-      storeVersion: _getCleanVersion(forceAppVersion ?? jsonObj['results'][0]['version']),
+      storeVersion:
+          _getCleanVersion(forceAppVersion ?? jsonObj['results'][0]['version']),
       originalStoreVersion: forceAppVersion ?? jsonObj['results'][0]['version'],
       appStoreLink: jsonObj['results'][0]['trackViewUrl'],
       releaseNotes: jsonObj['results'][0]['releaseNotes'],
@@ -188,7 +220,8 @@ class NewVersionPlus {
   }
 
   /// Android info is fetched by parsing the html of the app store page.
-  Future<VersionStatus?> _getAndroidStoreVersion(PackageInfo packageInfo) async {
+  Future<VersionStatus?> _getAndroidStoreVersion(
+      PackageInfo packageInfo) async {
     final id = androidId ?? packageInfo.packageName;
     // final uri = Uri.https("play.google.com", "/store/apps/details", {"id": id.toString(), "hl": androidPlayStoreCountry ?? "en_US"});
     // final response = await http.get(uri);
@@ -210,18 +243,22 @@ class NewVersionPlus {
     }
     // Supports 1.2.3 (most of the apps) and 1.2.prod.3 (e.g. Google Cloud)
     //final regexp = RegExp(r'\[\[\["(\d+\.\d+(\.[a-z]+)?\.\d+)"\]\]');
-    final regexp = RegExp(r'\[\[\[\"(\d+\.\d+(\.[a-z]+)?(\.([^"]|\\")*)?)\"\]\]');
+    final regexp =
+        RegExp(r'\[\[\[\"(\d+\.\d+(\.[a-z]+)?(\.([^"]|\\")*)?)\"\]\]');
     final storeVersion = regexp.firstMatch(response.body)?.group(1);
 
     //Description
     //final regexpDescription = RegExp(r'\[\[(null,)\"((\.[a-z]+)?(([^"]|\\")*)?)\"\]\]');
 
     //Release
-    final regexpRelease = RegExp(r'\[(null,)\[(null,)\"((\.[a-z]+)?(([^"]|\\")*)?)\"\]\]');
+    final regexpRelease =
+        RegExp(r'\[(null,)\[(null,)\"((\.[a-z]+)?(([^"]|\\")*)?)\"\]\]');
 
-    final expRemoveSc = RegExp(r"\\u003c[A-Za-z]{1,10}\\u003e", multiLine: true, caseSensitive: true);
+    final expRemoveSc = RegExp(r"\\u003c[A-Za-z]{1,10}\\u003e",
+        multiLine: true, caseSensitive: true);
 
-    final expRemoveQuote = RegExp(r"\\u0026quot;", multiLine: true, caseSensitive: true);
+    final expRemoveQuote =
+        RegExp(r"\\u0026quot;", multiLine: true, caseSensitive: true);
 
     final releaseNotes = regexpRelease.firstMatch(response.body)?.group(3);
     //final descriptionNotes = regexpDescription.firstMatch(response.body)?.group(2);
@@ -240,20 +277,28 @@ class NewVersionPlus {
     } catch (e) {
       debugPrint('Failed to parse Android update date: $e');
     }
-    
+
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
       storeVersion: _getCleanVersion(forceAppVersion ?? storeVersion ?? ""),
       originalStoreVersion: forceAppVersion ?? storeVersion ?? "",
       appStoreLink: uri.toString(),
-      releaseNotes: androidHtmlReleaseNotes ? _parseUnicodeToString(releaseNotes) : releaseNotes?.replaceAll(expRemoveSc, '').replaceAll(expRemoveQuote, '"'),
+      releaseNotes: androidHtmlReleaseNotes
+          ? _parseUnicodeToString(releaseNotes)
+          : releaseNotes
+              ?.replaceAll(expRemoveSc, '')
+              .replaceAll(expRemoveQuote, '"'),
       lastUpdateDate: lastUpdateDate,
     );
   }
 
   /// Update action fun
   /// show modal
-  void _updateActionFunc({required String appStoreLink, required bool allowDismissal, required BuildContext context, LaunchMode launchMode = LaunchMode.platformDefault}) {
+  void _updateActionFunc(
+      {required String appStoreLink,
+      required bool allowDismissal,
+      required BuildContext context,
+      LaunchMode launchMode = LaunchMode.platformDefault}) {
     launchAppStore(appStoreLink, launchMode: launchMode);
     if (allowDismissal) {
       Navigator.of(context, rootNavigator: true).pop();
@@ -278,29 +323,45 @@ class NewVersionPlus {
     LaunchModeVersion launchModeVersion = LaunchModeVersion.normal,
   }) async {
     final dialogTitleWidget = Text(dialogTitle);
-    final dialogTextWidget = Text(dialogText ?? 'You can now update this app from ${versionStatus.localVersion} to ${versionStatus.storeVersion}');
+    final dialogTextWidget = Text(dialogText ??
+        'You can now update this app from ${versionStatus.localVersion} to ${versionStatus.storeVersion}');
 
-    final launchMode = launchModeVersion == LaunchModeVersion.external ? LaunchMode.externalApplication : LaunchMode.platformDefault;
+    final launchMode = launchModeVersion == LaunchModeVersion.external
+        ? LaunchMode.externalApplication
+        : LaunchMode.platformDefault;
 
     final updateButtonTextWidget = Text(updateButtonText);
 
     List<Widget> actions = [
       Platform.isAndroid
           ? TextButton(
-              onPressed: () => _updateActionFunc(allowDismissal: allowDismissal, context: context, appStoreLink: versionStatus.appStoreLink, launchMode: launchMode),
+              onPressed: () => _updateActionFunc(
+                  allowDismissal: allowDismissal,
+                  context: context,
+                  appStoreLink: versionStatus.appStoreLink,
+                  launchMode: launchMode),
               child: updateButtonTextWidget,
             )
           : CupertinoDialogAction(
-              onPressed: () => _updateActionFunc(allowDismissal: allowDismissal, context: context, appStoreLink: versionStatus.appStoreLink, launchMode: launchMode),
+              onPressed: () => _updateActionFunc(
+                  allowDismissal: allowDismissal,
+                  context: context,
+                  appStoreLink: versionStatus.appStoreLink,
+                  launchMode: launchMode),
               child: updateButtonTextWidget,
             ),
     ];
 
     if (allowDismissal) {
       final dismissButtonTextWidget = Text(dismissButtonText);
-      dismissAction = dismissAction ?? () => Navigator.of(context, rootNavigator: true).pop();
+      dismissAction = dismissAction ??
+          () => Navigator.of(context, rootNavigator: true).pop();
       actions.add(
-        Platform.isAndroid ? TextButton(onPressed: dismissAction, child: dismissButtonTextWidget) : CupertinoDialogAction(onPressed: dismissAction, child: dismissButtonTextWidget),
+        Platform.isAndroid
+            ? TextButton(
+                onPressed: dismissAction, child: dismissButtonTextWidget)
+            : CupertinoDialogAction(
+                onPressed: dismissAction, child: dismissButtonTextWidget),
       );
     }
 
@@ -308,18 +369,29 @@ class NewVersionPlus {
       context: context,
       barrierDismissible: allowDismissal,
       builder: (BuildContext context) {
-        return PopScope(
-          canPop: allowDismissal,
-          child: Platform.isAndroid
-              ? AlertDialog(title: dialogTitleWidget, content: dialogTextWidget, actions: actions)
-              : CupertinoAlertDialog(title: dialogTitleWidget, content: dialogTextWidget, actions: actions),
-        );
+        if (Platform.isAndroid) {
+          return WillPopScope(
+            onWillPop: () async => allowDismissal,
+            child: AlertDialog(
+              title: dialogTitleWidget,
+              content: dialogTextWidget,
+              actions: actions,
+            ),
+          );
+        } else {
+          return CupertinoAlertDialog(
+            title: dialogTitleWidget,
+            content: dialogTextWidget,
+            actions: actions,
+          );
+        }
       },
     );
   }
 
   /// Launches the Apple App Store or Google Play Store page for the app.
-  Future<void> launchAppStore(String appStoreLink, {LaunchMode launchMode = LaunchMode.platformDefault}) async {
+  Future<void> launchAppStore(String appStoreLink,
+      {LaunchMode launchMode = LaunchMode.platformDefault}) async {
     if (await canLaunchUrl(Uri.parse(appStoreLink))) {
       await launchUrl(Uri.parse(appStoreLink), mode: launchMode);
     } else {
@@ -342,7 +414,8 @@ class NewVersionPlus {
       var matches = re.allMatches(release);
       var codePoints = <int>[];
       for (var match in matches) {
-        var codePoint = match.namedGroup('asciiValue') ?? match.namedGroup('codePoint');
+        var codePoint =
+            match.namedGroup('asciiValue') ?? match.namedGroup('codePoint');
         if (codePoint != null) {
           codePoints.add(int.parse(codePoint, radix: 16));
         } else {
