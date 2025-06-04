@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -270,9 +271,15 @@ class NewVersionPlus {
       final dateRegex = RegExp(r'(\d{1,2}\s+\w+\s+\d{4})');
       final dateMatch = dateRegex.firstMatch(response.body);
       if (dateMatch != null) {
-        // This is a basic implementation - you might need to adjust based on locale
-        // The actual implementation would need more sophisticated date parsing
-        debugPrint('Found potential date: ${dateMatch.group(1)}');
+        try {
+          lastUpdateDate = DateTime.parse(
+            DateFormat('d MMMM yyyy', 'en_US')
+                .parse(dateMatch.group(1)!)
+                .toIso8601String(),
+          );
+        } catch (e) {
+          debugPrint('Failed to parse dateMatch: $e');
+        }
       }
     } catch (e) {
       debugPrint('Failed to parse Android update date: $e');
