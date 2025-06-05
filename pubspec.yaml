@@ -4,21 +4,21 @@ version: 0.1.1
 homepage: https://github.com/CodesFirst/new_version_plus
 
 environment:
-  sdk: ^3.1.0
-  flutter: '>=3.13.1'
+  sdk: ^3.4.0
+  flutter: '>=3.22.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  package_info_plus: ^4.2.0
-  http: ^1.1.0
-  url_launcher: ^6.1.14
+  package_info_plus: ^8.3.0
+  http: ^1.4.0
+  url_launcher: ^6.3.1
   intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.2
+  flutter_lints: ^4.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

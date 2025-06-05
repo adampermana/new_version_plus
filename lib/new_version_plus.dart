@@ -782,33 +782,33 @@ class NewVersionPlus {
 
   /// Function for convert text
   /// _parseUnicodeToString
-  String? _parseUnicodeToStrings(String? release) {
-    try {
-      if (release == null || release.isEmpty) return release;
+  // String? _parseUnicodeToStrings(String? release) {
+  //   try {
+  //     if (release == null || release.isEmpty) return release;
 
-      final re = RegExp(
-        r'(%(?<asciiValue>[0-9A-Fa-f]{2}))'
-        r'|(\\u(?<codePoint>[0-9A-Fa-f]{4}))'
-        r'|.',
-      );
+  //     final re = RegExp(
+  //       r'(%(?<asciiValue>[0-9A-Fa-f]{2}))'
+  //       r'|(\\u(?<codePoint>[0-9A-Fa-f]{4}))'
+  //       r'|.',
+  //     );
 
-      var matches = re.allMatches(release);
-      var codePoints = <int>[];
-      for (var match in matches) {
-        var codePoint =
-            match.namedGroup('asciiValue') ?? match.namedGroup('codePoint');
-        if (codePoint != null) {
-          codePoints.add(int.parse(codePoint, radix: 16));
-        } else {
-          codePoints += match.group(0)!.runes.toList();
-        }
-      }
-      var decoded = String.fromCharCodes(codePoints);
-      return decoded;
-    } catch (e) {
-      return release;
-    }
-  }
+  //     var matches = re.allMatches(release);
+  //     var codePoints = <int>[];
+  //     for (var match in matches) {
+  //       var codePoint =
+  //           match.namedGroup('asciiValue') ?? match.namedGroup('codePoint');
+  //       if (codePoint != null) {
+  //         codePoints.add(int.parse(codePoint, radix: 16));
+  //       } else {
+  //         codePoints += match.group(0)!.runes.toList();
+  //       }
+  //     }
+  //     var decoded = String.fromCharCodes(codePoints);
+  //     return decoded;
+  //   } catch (e) {
+  //     return release;
+  //   }
+  // }
 }
 
 enum LaunchModeVersion { normal, external }
