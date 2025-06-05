@@ -36,10 +36,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> checkNewVersion() async {
     final newVersion = NewVersionPlus(
-      androidId: 'com.mobile.legends', // Ganti dengan package ID milikmu
-      iOSId:
-          'com.your.ios.id', // Optional, kalau kamu juga publish ke App Store
-    );
+        androidId: 'com.solu.mobsen', // Ganti dengan package ID milikmu
+        iOSId:
+            'com.your.ios.id', // Optional, kalau kamu juga publish ke App Store
+        androidHtmlReleaseNotes: true);
 
     final status = await newVersion.getVersionStatus();
     if (status == null) {
