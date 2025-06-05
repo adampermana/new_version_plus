@@ -26,12 +26,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String _currentVersion = '-';
-  String _storeVersion = '-';
-  bool _canUpdate = false;
-  String _lastUpdateDate = '-';
-  String _releaseNotes = '-';
-  bool _isLoading = true;
+  String _currentVersion = '-',
+      _storeVersion = '-',
+      _lastUpdateDate = '-',
+      _releaseNotes = '-',
+      _nameApk = '-',
+      _nameDevelop = '-';
+
+  bool _canUpdate = false, _isLoading = true;
 
   @override
   void initState() {
@@ -42,7 +44,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> checkNewVersion() async {
     try {
       final newVersion = NewVersionPlus(
-        androidId: 'com.solu.mobsen', // Ganti dengan package ID milikmu
+        androidId: 'com.g4sindonesia.gracia', // Ganti dengan package ID milikmu
         iOSId:
             'com.your.ios.id', // Optional, kalau kamu juga publish ke App Store
         androidHtmlReleaseNotes:
@@ -69,6 +71,9 @@ class _HomePageState extends State<HomePage> {
             ? '${status.lastUpdateDate!.day}/${status.lastUpdateDate!.month}/${status.lastUpdateDate!.year}'
             : 'Tidak tersedia';
         _releaseNotes = status.releaseNotes ?? 'Tidak ada catatan rilis';
+        _nameApk = status.appName ?? 'Tidak ada Name APk';
+        _nameDevelop = status.developerName ?? 'Tidak ada Name DEv';
+        debugPrint('===== Nama $_nameDevelop, _nameApk');
       });
 
       // Show dialog automatically if update is available
@@ -158,6 +163,8 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 8),
                           _buildInfoRow(
                               'Tanggal Update Terakhir:', _lastUpdateDate),
+                          _buildInfoRow('Name APK:', _nameApk),
+                          _buildInfoRow('Name Develop:', _nameDevelop),
                         ],
                       ),
                     ),

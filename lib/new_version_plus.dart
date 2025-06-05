@@ -31,6 +31,12 @@ class VersionStatus {
   /// The last update date of the store version (optional).
   final DateTime? lastUpdateDate;
 
+  /// The name of the app as it appears in the store.
+  final String? appName;
+
+  /// The developer/publisher name of the app.
+  final String? developerName;
+
   /// Returns `true` if the store version of the application is greater than the local version.
   bool get canUpdate {
     final local = localVersion.split('.').map(int.parse).toList();
@@ -56,21 +62,27 @@ class VersionStatus {
   }
 
   //Public Contructor
-  VersionStatus(
-      {required this.localVersion,
-      required this.storeVersion,
-      required this.appStoreLink,
-      this.releaseNotes,
-      this.originalStoreVersion,
-      this.lastUpdateDate});
+  VersionStatus({
+    required this.localVersion,
+    required this.storeVersion,
+    required this.appStoreLink,
+    this.releaseNotes,
+    this.originalStoreVersion,
+    this.lastUpdateDate,
+    this.appName,
+    this.developerName,
+  });
 
-  VersionStatus._(
-      {required this.localVersion,
-      required this.storeVersion,
-      required this.appStoreLink,
-      this.releaseNotes,
-      this.originalStoreVersion,
-      this.lastUpdateDate});
+  VersionStatus._({
+    required this.localVersion,
+    required this.storeVersion,
+    required this.appStoreLink,
+    this.releaseNotes,
+    this.originalStoreVersion,
+    this.lastUpdateDate,
+    this.appName,
+    this.developerName,
+  });
 }
 
 class NewVersionPlus {
@@ -209,6 +221,20 @@ class NewVersionPlus {
     } catch (e) {
       debugPrint('Failed to parse release date: $e');
     }
+
+    // Extract app name and developer name from iOS App Store
+    String? appName;
+    String? developerName;
+
+    try {
+      appName = jsonObj['results'][0]['trackName'] as String?;
+      developerName = jsonObj['results'][0]['artistName'] as String?;
+
+      debugPrint('iOS App Name: $appName');
+      debugPrint('iOS Developer Name: $developerName');
+    } catch (e) {
+      debugPrint('Failed to extract app name or developer name from iOS: $e');
+    }
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
       storeVersion:
@@ -217,6 +243,8 @@ class NewVersionPlus {
       appStoreLink: jsonObj['results'][0]['trackViewUrl'],
       releaseNotes: jsonObj['results'][0]['releaseNotes'],
       lastUpdateDate: lastUpdateDate,
+      appName: appName,
+      developerName: developerName,
     );
   }
 
@@ -258,6 +286,109 @@ class NewVersionPlus {
         RegExp(r"\\u0026quot;", multiLine: true, caseSensitive: true);
 
     String? releaseNotes = regexpRelease.firstMatch(response.body)?.group(3);
+
+    // Extract app name from Google Play Store
+    String? appName;
+    String? developerName;
+
+    try {
+      // Method 1: Extract from page title
+      final titleRegex = RegExp(
+          r'<title[^>]*>([^<]+)\s*-\s*Apps on Google Play</title>',
+          caseSensitive: false);
+      final titleMatch = titleRegex.firstMatch(response.body);
+      if (titleMatch != null) {
+        appName = titleMatch.group(1)?.trim();
+        debugPrint('Found app name from title: $appName');
+      }
+
+      // Method 2: Extract from structured data (JSON-LD)
+      if (appName == null || appName.isEmpty) {
+        final jsonLdRegex = RegExp(r'"name"\s*:\s*"([^"]+)"');
+        final jsonLdMatch = jsonLdRegex.firstMatch(response.body);
+        if (jsonLdMatch != null) {
+          appName = jsonLdMatch.group(1)?.trim();
+          debugPrint('Found app name from JSON-LD: $appName');
+        }
+      }
+
+      // Method 3: Extract from meta property
+      if (appName == null || appName.isEmpty) {
+        final metaRegex = RegExp(
+            r'<meta\s+property="og:title"\s+content="([^"]+)"',
+            caseSensitive: false);
+        final metaMatch = metaRegex.firstMatch(response.body);
+        if (metaMatch != null) {
+          appName = metaMatch.group(1)?.trim();
+          debugPrint('Found app name from meta tag: $appName');
+        }
+      }
+
+      // Method 4: Extract from JavaScript data
+      if (appName == null || appName.isEmpty) {
+        final jsDataRegex = RegExp(r'\["ds:5"[^\]]*\]\s*,\s*\[\s*"([^"]+)"');
+        final jsDataMatch = jsDataRegex.firstMatch(response.body);
+        if (jsDataMatch != null) {
+          appName = jsDataMatch.group(1)?.trim();
+          debugPrint('Found app name from JS data: $appName');
+        }
+      }
+
+      // Method 5: Alternative pattern for app name in structured data
+      if (appName == null || appName.isEmpty) {
+        final altRegex = RegExp(r'"applicationName"\s*:\s*"([^"]+)"');
+        final altMatch = altRegex.firstMatch(response.body);
+        if (altMatch != null) {
+          appName = altMatch.group(1)?.trim();
+          debugPrint('Found app name from application name: $appName');
+        }
+      }
+
+      // Extract developer name
+      // Method 1: From structured data
+      final developerRegex =
+          RegExp(r'"author"\s*:\s*{\s*"name"\s*:\s*"([^"]+)"');
+      final developerMatch = developerRegex.firstMatch(response.body);
+      if (developerMatch != null) {
+        developerName = developerMatch.group(1)?.trim();
+        debugPrint('Found developer name: $developerName');
+      }
+
+      // Method 2: Alternative pattern for developer
+      if (developerName == null || developerName.isEmpty) {
+        final altDeveloperRegex = RegExp(r'"publisher"\s*:\s*"([^"]+)"');
+        final altDeveloperMatch = altDeveloperRegex.firstMatch(response.body);
+        if (altDeveloperMatch != null) {
+          developerName = altDeveloperMatch.group(1)?.trim();
+          debugPrint('Found developer name (alt): $developerName');
+        }
+      }
+
+      // Clean up app name if found
+      if (appName != null) {
+        // Remove common suffixes and clean up
+        appName = appName
+            .replaceAll(
+                RegExp(r'\s*-\s*Apps on Google Play$', caseSensitive: false),
+                '')
+            .replaceAll(
+                RegExp(r'\s*-\s*Google Play$', caseSensitive: false), '')
+            .trim();
+
+        // Decode HTML entities
+        appName = _decodeHtmlEntities(appName);
+      }
+
+      if (developerName != null) {
+        developerName = _decodeHtmlEntities(developerName);
+      }
+
+      debugPrint('Final Android App Name: $appName');
+      debugPrint('Final Android Developer Name: $developerName');
+    } catch (e) {
+      debugPrint(
+          'Failed to extract app name or developer name from Android: $e');
+    }
 
     // Extract last update date for Android - improved method
     DateTime? lastUpdateDate;
@@ -406,7 +537,50 @@ class NewVersionPlus {
       appStoreLink: uri.toString(),
       releaseNotes: _formatReleaseNotes(releaseNotes, androidHtmlReleaseNotes),
       lastUpdateDate: lastUpdateDate,
+      appName: appName,
+      developerName: developerName,
     );
+  }
+
+  // Helper method untuk decode HTML entities
+  String _decodeHtmlEntities(String text) {
+    final htmlEntities = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&apos;': "'",
+      '&nbsp;': ' ',
+      '&#x27;': "'",
+      '&#x2F;': '/',
+      '&#x60;': '`',
+      '&#x3D;': '=',
+    };
+
+    String result = text;
+    htmlEntities.forEach((entity, replacement) {
+      result = result.replaceAll(entity, replacement);
+    });
+
+    // Handle numeric character references
+    result = result.replaceAllMapped(
+      RegExp(r'&#(\d+);'),
+      (match) {
+        final charCode = int.parse(match.group(1)!);
+        return String.fromCharCode(charCode);
+      },
+    );
+
+    result = result.replaceAllMapped(
+      RegExp(r'&#x([0-9A-Fa-f]+);'),
+      (match) {
+        final charCode = int.parse(match.group(1)!, radix: 16);
+        return String.fromCharCode(charCode);
+      },
+    );
+
+    return result;
   }
 
   /// Universal release notes formatter that handles both HTML and non-HTML formats
