@@ -37,6 +37,9 @@ class VersionStatus {
   /// The developer/publisher name of the app.
   final String? developerName;
 
+  // The Image Apps
+  final String? appIconUrl;
+
   /// Returns `true` if the store version of the application is greater than the local version.
   bool get canUpdate {
     final local = localVersion.split('.').map(int.parse).toList();
@@ -71,6 +74,7 @@ class VersionStatus {
     this.lastUpdateDate,
     this.appName,
     this.developerName,
+    this.appIconUrl,
   });
 
   VersionStatus._({
@@ -82,6 +86,7 @@ class VersionStatus {
     this.lastUpdateDate,
     this.appName,
     this.developerName,
+    this.appIconUrl,
   });
 }
 
@@ -222,6 +227,17 @@ class NewVersionPlus {
       debugPrint('Failed to parse release date: $e');
     }
 
+    // Get app icon URL (try multiple sizes)
+    String? appIconUrl;
+    try {
+      appIconUrl = jsonObj['results'][0]['artworkUrl512'] as String?;
+      appIconUrl ??= jsonObj['results'][0]['artworkUrl100'] as String?;
+      appIconUrl ??= jsonObj['results'][0]['artworkUrl60'] as String?;
+      debugPrint('iOS App Icon URL: $appIconUrl');
+    } catch (e) {
+      debugPrint('Failed to get iOS app icon URL: $e');
+    }
+
     // Extract app name and developer name from iOS App Store
     String? appName;
     String? developerName;
@@ -245,6 +261,7 @@ class NewVersionPlus {
       lastUpdateDate: lastUpdateDate,
       appName: appName,
       developerName: developerName,
+      appIconUrl: appIconUrl,
     );
   }
 
@@ -286,6 +303,97 @@ class NewVersionPlus {
         RegExp(r"\\u0026quot;", multiLine: true, caseSensitive: true);
 
     String? releaseNotes = regexpRelease.firstMatch(response.body)?.group(3);
+
+    String? appIconUrl;
+
+    try {
+      // Method 1: Look for app icon in structured data (most reliable)
+      final structuredIconRegex =
+          RegExp(r'"image"\s*:\s*"([^"]*)"', caseSensitive: false);
+      final structuredMatch = structuredIconRegex.firstMatch(response.body);
+      if (structuredMatch != null) {
+        appIconUrl = structuredMatch.group(1);
+        debugPrint('Found icon from structured data: $appIconUrl');
+      }
+
+      // Method 2: Look for app icon in meta tags
+      if (appIconUrl == null || appIconUrl.isEmpty) {
+        final metaIconRegex = RegExp(
+            r'<meta\s+property="og:image"\s+content="([^"]+)"',
+            caseSensitive: false);
+        final metaMatch = metaIconRegex.firstMatch(response.body);
+        if (metaMatch != null) {
+          appIconUrl = metaMatch.group(1);
+          debugPrint('Found icon from meta tag: $appIconUrl');
+        }
+      }
+
+      // Method 3: Look for specific Play Store icon patterns
+      if (appIconUrl == null || appIconUrl.isEmpty) {
+        final playStoreIconPatterns = [
+          // Pattern for high resolution icons
+          RegExp(
+              r'src="([^"]*play-lh\.googleusercontent\.com[^"]*=s512[^"]*)"'),
+          RegExp(
+              r'src="([^"]*play-lh\.googleusercontent\.com[^"]*=s256[^"]*)"'),
+          RegExp(
+              r'src="([^"]*play-lh\.googleusercontent\.com[^"]*=s128[^"]*)"'),
+          // Pattern for any Play Store hosted images
+          RegExp(r'src="([^"]*play-lh\.googleusercontent\.com[^"]*)"'),
+          // Fallback pattern for app icons
+          RegExp(r'<img[^>]*class="[^"]*icon[^"]*"[^>]*src="([^"]*)"'),
+          RegExp(r'<img[^>]*src="([^"]*)"[^>]*class="[^"]*icon[^"]*"'),
+        ];
+
+        for (final pattern in playStoreIconPatterns) {
+          final match = pattern.firstMatch(response.body);
+          if (match != null) {
+            appIconUrl = match.group(1);
+            debugPrint('Found icon from pattern: $appIconUrl');
+            break;
+          }
+        }
+      }
+
+      // Method 4: Look for JSON-LD structured data
+      if (appIconUrl == null || appIconUrl.isEmpty) {
+        final jsonLdPattern = RegExp(
+            r'"@type"\s*:\s*"MobileApplication"[^}]*"image"\s*:\s*"([^"]*)"',
+            caseSensitive: false,
+            dotAll: true);
+        final jsonLdMatch = jsonLdPattern.firstMatch(response.body);
+        if (jsonLdMatch != null) {
+          appIconUrl = jsonLdMatch.group(1);
+          debugPrint('Found icon from JSON-LD: $appIconUrl');
+        }
+      }
+
+      // Clean up the URL if found
+      if (appIconUrl != null && appIconUrl.isNotEmpty) {
+        // Handle relative URLs
+        if (!appIconUrl.startsWith('http')) {
+          if (appIconUrl.startsWith('//')) {
+            appIconUrl = 'https:$appIconUrl';
+          } else if (appIconUrl.startsWith('/')) {
+            appIconUrl = 'https://play.google.com$appIconUrl';
+          }
+        }
+
+        // For Play Store images, try to get higher resolution
+        if (appIconUrl.contains('play-lh.googleusercontent.com')) {
+          // Replace size parameter with higher resolution if available
+          appIconUrl = appIconUrl.replaceAll(RegExp(r'=s\d+'), '=s512');
+          // If no size parameter, add one
+          if (!appIconUrl.contains('=s')) {
+            appIconUrl += '=s512';
+          }
+        }
+
+        debugPrint('Final Android App Icon URL: $appIconUrl');
+      }
+    } catch (e) {
+      debugPrint('Failed to get Android app icon URL: $e');
+    }
 
     // Extract app name from Google Play Store
     String? appName;
@@ -539,6 +647,7 @@ class NewVersionPlus {
       lastUpdateDate: lastUpdateDate,
       appName: appName,
       developerName: developerName,
+      appIconUrl: appIconUrl,
     );
   }
 

@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   new_version_plus:
     path: ../
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:

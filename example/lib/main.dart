@@ -1,3 +1,4 @@
+import 'package:example/cache_images.dart';
 import 'package:flutter/material.dart';
 import 'package:new_version_plus/new_version_plus.dart';
 
@@ -32,6 +33,8 @@ class _HomePageState extends State<HomePage> {
       _releaseNotes = '-',
       _nameApk = '-',
       _nameDevelop = '-';
+
+  String? _imageApp;
 
   bool _canUpdate = false, _isLoading = true;
 
@@ -73,7 +76,10 @@ class _HomePageState extends State<HomePage> {
         _releaseNotes = status.releaseNotes ?? 'Tidak ada catatan rilis';
         _nameApk = status.appName ?? 'Tidak ada Name APk';
         _nameDevelop = status.developerName ?? 'Tidak ada Name DEv';
+        _nameDevelop = status.appIconUrl ?? '';
+        _imageApp = status.appIconUrl ?? ''; // Ini yang diperbaiki
         debugPrint('===== Nama $_nameDevelop, _nameApk');
+        debugPrint('===== Image $_imageApp, imageAPp');
       });
 
       // Show dialog automatically if update is available
@@ -164,7 +170,32 @@ class _HomePageState extends State<HomePage> {
                           _buildInfoRow(
                               'Tanggal Update Terakhir:', _lastUpdateDate),
                           _buildInfoRow('Name APK:', _nameApk),
-                          _buildInfoRow('Name Develop:', _nameDevelop),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'Image',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              _imageApp != null
+                                  ? Image.network(
+                                      _imageApp!,
+                                      width: 100,
+                                      height: 100,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Icon(Icons.error),
+                                    )
+                                  : const Text('Tidak ada gambar'),
+                            ],
+                          )
+                          // _buildInfoRow('Name Develop:', _nameDevelop),
                         ],
                       ),
                     ),
