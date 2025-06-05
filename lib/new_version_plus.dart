@@ -498,9 +498,18 @@ class NewVersionPlus {
           'Failed to extract app name or developer name from Android: $e');
     }
 
-    // Extract last update date for Android - improved method
+    // Method untuk mendukung parsing tanggal Android dengan bahasa Indonesia
+// Ganti seluruh bagian "Extract last update date for Android" di method _getAndroidStoreVersion
+// mulai dari baris "DateTime? lastUpdateDate;" sampai "debugPrint('Final lastUpdateDate: $lastUpdateDate');"
+// dengan kode di bawah ini:
+
+// Extract last update date for Android - improved method with Indonesian support
     DateTime? lastUpdateDate;
     try {
+      final currentCountry = androidPlayStoreCountry ?? 'en_US';
+      final countryCode =
+          currentCountry.split('_')[0]; // Ambil kode negara saja
+
       // Method 1: Look for structured data containing date
       final structuredDataRegex = RegExp(r'"datePublished":"([^"]+)"');
       final structuredMatch = structuredDataRegex.firstMatch(response.body);
@@ -516,45 +525,45 @@ class NewVersionPlus {
 
       // Method 2: Look for JavaScript data containing update date
       if (lastUpdateDate == null) {
-        final jsDataRegex = RegExp(r'\["Updated",.*?"([^"]+)"\]');
-        final jsMatch = jsDataRegex.firstMatch(response.body);
+        // Pattern yang lebih fleksibel untuk berbagai bahasa
+        final jsDataPatterns = [
+          RegExp(r'\["Updated",.*?"([^"]+)"\]'),
+          RegExp(r'\["Diperbarui",.*?"([^"]+)"\]'), // Indonesian
+          RegExp(r'"dateModified":"([^"]+)"'),
+          RegExp(r'"lastModified":"([^"]+)"'),
+        ];
 
-        if (jsMatch != null) {
-          try {
-            final dateStr = jsMatch.group(1)!;
-            debugPrint('Found JS date string: $dateStr');
+        for (final pattern in jsDataPatterns) {
+          final jsMatch = pattern.firstMatch(response.body);
+          if (jsMatch != null) {
+            try {
+              final dateStr = jsMatch.group(1)!;
+              debugPrint('Found JS date string: $dateStr');
 
-            // Try different date formats
-            final formats = [
-              'MMM d, yyyy',
-              'MMMM d, yyyy',
-              'd MMM yyyy',
-              'd MMMM yyyy',
-              'yyyy-MM-dd',
-            ];
-
-            for (final format in formats) {
-              try {
-                lastUpdateDate = DateFormat(format, 'en_US').parse(dateStr);
-                debugPrint(
-                    'Successfully parsed date with format $format: $lastUpdateDate');
+              lastUpdateDate = _parseMultiLanguageDate(dateStr, countryCode);
+              if (lastUpdateDate != null) {
+                debugPrint('Successfully parsed JS date: $lastUpdateDate');
                 break;
-              } catch (e) {
-                continue;
               }
+            } catch (e) {
+              debugPrint('Failed to parse JS date: $e');
+              continue;
             }
-          } catch (e) {
-            debugPrint('Failed to parse JS date: $e');
           }
         }
       }
 
       // Method 3: Look for alternative date patterns in the HTML
       if (lastUpdateDate == null) {
-        // Pattern for "Updated on" or similar
+        // Pattern untuk berbagai bahasa
         final updatePatterns = [
-          RegExp(r'Updated on ([^<]+)'),
-          RegExp(r'Last updated ([^<]+)'),
+          // English patterns
+          RegExp(r'Updated on ([^<]+)', caseSensitive: false),
+          RegExp(r'Last updated ([^<]+)', caseSensitive: false),
+          // Indonesian patterns
+          RegExp(r'Diperbarui pada ([^<]+)', caseSensitive: false),
+          RegExp(r'Terakhir diperbarui ([^<]+)', caseSensitive: false),
+          // Generic patterns
           RegExp(r'"lastModified":"([^"]+)"'),
           RegExp(r'"dateModified":"([^"]+)"'),
         ];
@@ -572,30 +581,13 @@ class NewVersionPlus {
                   .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
                   .trim();
 
-              // Try to parse the cleaned date
-              final formats = [
-                'MMM d, yyyy',
-                'MMMM d, yyyy',
-                'd MMM yyyy',
-                'd MMMM yyyy',
-                'yyyy-MM-dd',
-                'MM/dd/yyyy',
-                'dd/MM/yyyy',
-              ];
-
-              for (final format in formats) {
-                try {
-                  lastUpdateDate =
-                      DateFormat(format, 'en_US').parse(cleanDateStr);
-                  debugPrint(
-                      'Successfully parsed alternative date: $lastUpdateDate');
-                  break;
-                } catch (e) {
-                  continue;
-                }
+              lastUpdateDate =
+                  _parseMultiLanguageDate(cleanDateStr, countryCode);
+              if (lastUpdateDate != null) {
+                debugPrint(
+                    'Successfully parsed alternative date: $lastUpdateDate');
+                break;
               }
-
-              if (lastUpdateDate != null) break;
             } catch (e) {
               debugPrint('Failed to parse alternative date pattern: $e');
               continue;
@@ -606,28 +598,62 @@ class NewVersionPlus {
 
       // Method 4: Look for any date-like pattern as fallback
       if (lastUpdateDate == null) {
-        final fallbackPattern = RegExp(
+        // Pattern untuk bulan bahasa Inggris
+        final englishPattern = RegExp(
             r'(\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b)');
-        final fallbackMatch = fallbackPattern.firstMatch(response.body);
 
-        if (fallbackMatch != null) {
-          try {
-            final dateStr = fallbackMatch.group(1)!;
-            debugPrint('Found fallback date: $dateStr');
+        // Pattern untuk bulan bahasa Indonesia
+        final indonesianPattern = RegExp(
+            r'(\b(?:\d{1,2}\s+(?:Jan|Feb|Mar|Apr|Mei|Jun|Jul|Ags|Sep|Okt|Nov|Des|Januari|Februari|Maret|April|Juni|Juli|Agustus|September|Oktober|November|Desember)[a-z]*\s+\d{4})\b)',
+            caseSensitive: false);
 
-            final formats = ['MMM d, yyyy', 'MMMM d, yyyy'];
-            for (final format in formats) {
-              try {
-                lastUpdateDate = DateFormat(format, 'en_US').parse(dateStr);
+        final patterns = countryCode.toLowerCase() == 'id'
+            ? [indonesianPattern, englishPattern]
+            : [englishPattern, indonesianPattern];
+
+        for (final pattern in patterns) {
+          final fallbackMatch = pattern.firstMatch(response.body);
+          if (fallbackMatch != null) {
+            try {
+              final dateStr = fallbackMatch.group(1)!;
+              debugPrint('Found fallback date: $dateStr');
+
+              lastUpdateDate = _parseMultiLanguageDate(dateStr, countryCode);
+              if (lastUpdateDate != null) {
                 debugPrint(
                     'Successfully parsed fallback date: $lastUpdateDate');
                 break;
-              } catch (e) {
-                continue;
               }
+            } catch (e) {
+              debugPrint('Failed to parse fallback date: $e');
+              continue;
             }
+          }
+        }
+      }
+
+      // Method 5: Extreme fallback - cari pattern tanggal apapun
+      if (lastUpdateDate == null) {
+        // Cari pattern dd/mm/yyyy atau mm/dd/yyyy
+        final datePattern = RegExp(r'(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})');
+        final dateMatch = datePattern.firstMatch(response.body);
+
+        if (dateMatch != null) {
+          try {
+            final dateStr = dateMatch.group(1)!;
+            debugPrint('Found extreme fallback date: $dateStr');
+
+            // Coba format dd/mm/yyyy untuk Indonesia
+            if (countryCode.toLowerCase() == 'id') {
+              lastUpdateDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+            } else {
+              lastUpdateDate = DateFormat('MM/dd/yyyy').parse(dateStr);
+            }
+
+            debugPrint(
+                'Successfully parsed extreme fallback date: $lastUpdateDate');
           } catch (e) {
-            debugPrint('Failed to parse fallback date: $e');
+            debugPrint('Failed to parse extreme fallback date: $e');
           }
         }
       }
@@ -635,9 +661,9 @@ class NewVersionPlus {
       debugPrint('Failed to extract Android update date: $e');
     }
 
-    // Debug log the final result
-    debugPrint('Final lastUpdateDate: $lastUpdateDate');
-
+// Debug log the final result
+    // debugPrint(
+    //     'Final lastUpdateDate for country $countryCode: $lastUpdateDate');
     return VersionStatus._(
       localVersion: _getCleanVersion(packageInfo.version),
       storeVersion: _getCleanVersion(forceAppVersion ?? storeVersion ?? ""),
@@ -1092,6 +1118,105 @@ class NewVersionPlus {
   //     return release;
   //   }
   // }
+  Map<String, String> _getIndonesianMonthMapping() {
+    return {
+      // Bulan penuh
+      'januari': 'January',
+      'februari': 'February',
+      'maret': 'March',
+      'april': 'April',
+      'mei': 'May',
+      'juni': 'June',
+      'juli': 'July',
+      'agustus': 'August',
+      'september': 'September',
+      'oktober': 'October',
+      'november': 'November',
+      'desember': 'December',
+      // Bulan singkat
+      'jan': 'Jan',
+      'feb': 'Feb',
+      'mar': 'Mar',
+      'apr': 'Apr',
+      'jun': 'Jun',
+      'jul': 'Jul',
+      'ags': 'Aug',
+      'sep': 'Sep',
+      'okt': 'Oct',
+      'nov': 'Nov',
+      'des': 'Dec',
+    };
+  }
+
+// Method untuk convert tanggal Indonesia ke format yang bisa di-parse
+  String _convertIndonesianDateToEnglish(String dateStr) {
+    String result = dateStr.toLowerCase().trim();
+    final monthMapping = _getIndonesianMonthMapping();
+
+    // Replace Indonesian month names with English ones
+    monthMapping.forEach((indonesian, english) {
+      result = result.replaceAll(indonesian, english);
+    });
+
+    return result;
+  }
+
+// Method untuk parsing tanggal dengan support multi-bahasa
+  DateTime? _parseMultiLanguageDate(String dateStr, String countryCode) {
+    try {
+      String cleanDateStr = dateStr.trim();
+
+      // Jika country code adalah Indonesia, convert dulu ke format Inggris
+      if (countryCode.toLowerCase() == 'id') {
+        cleanDateStr = _convertIndonesianDateToEnglish(cleanDateStr);
+      }
+
+      // Daftar format tanggal yang mungkin
+      final formats = [
+        'MMM d, yyyy', // Mar 15, 2024
+        'MMMM d, yyyy', // March 15, 2024
+        'd MMM yyyy', // 15 Mar 2024
+        'd MMMM yyyy', // 15 March 2024
+        'yyyy-MM-dd', // 2024-03-15
+        'MM/dd/yyyy', // 03/15/2024
+        'dd/MM/yyyy', // 15/03/2024
+        'dd-MM-yyyy', // 15-03-2024
+        'yyyy/MM/dd', // 2024/03/15
+      ];
+
+      // Coba parse dengan berbagai format
+      for (final format in formats) {
+        try {
+          return DateFormat(format, 'en_US').parse(cleanDateStr);
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // Jika masih gagal, coba dengan format Indonesia langsung
+      if (countryCode.toLowerCase() == 'id') {
+        final indonesianFormats = [
+          'dd MMMM yyyy', // 15 Maret 2024
+          'd MMMM yyyy', // 15 Maret 2024
+          'dd MMM yyyy', // 15 Mar 2024
+          'd MMM yyyy', // 15 Mar 2024
+        ];
+
+        for (final format in indonesianFormats) {
+          try {
+            return DateFormat(format, 'id_ID').parse(dateStr);
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error parsing date: $dateStr - $e');
+      return null;
+    }
+  }
 }
 
 enum LaunchModeVersion { normal, external }

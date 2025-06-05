@@ -1,5 +1,6 @@
-import 'package:example/cache_images.dart';
+// import 'package:example/cache_images.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:new_version_plus/new_version_plus.dart';
 
 void main() {
@@ -47,11 +48,13 @@ class _HomePageState extends State<HomePage> {
   Future<void> checkNewVersion() async {
     try {
       final newVersion = NewVersionPlus(
-        androidId: 'com.g4sindonesia.gracia', // Ganti dengan package ID milikmu
+        androidId: 'com.solu.mobsen', // Ganti dengan package ID milikmu
         iOSId:
             'com.your.ios.id', // Optional, kalau kamu juga publish ke App Store
         androidHtmlReleaseNotes:
             true, // Optional, untuk menampilkan catatan rilis HTML
+        androidPlayStoreCountry: 'id',
+        // locale: AppLocale.id,
       );
 
       final status = await newVersion.getVersionStatus();
@@ -71,7 +74,7 @@ class _HomePageState extends State<HomePage> {
         _storeVersion = status.storeVersion;
         _canUpdate = status.canUpdate;
         _lastUpdateDate = status.lastUpdateDate != null
-            ? '${status.lastUpdateDate!.day}/${status.lastUpdateDate!.month}/${status.lastUpdateDate!.year}'
+            ? DateFormat('dd MMMM yyyy').format(status.lastUpdateDate!)
             : 'Tidak tersedia';
         _releaseNotes = status.releaseNotes ?? 'Tidak ada catatan rilis';
         _nameApk = status.appName ?? 'Tidak ada Name APk';
@@ -186,8 +189,8 @@ class _HomePageState extends State<HomePage> {
                               _imageApp != null
                                   ? Image.network(
                                       _imageApp!,
-                                      width: 100,
-                                      height: 100,
+                                      width: 50,
+                                      height: 50,
                                       errorBuilder:
                                           (context, error, stackTrace) =>
                                               const Icon(Icons.error),
