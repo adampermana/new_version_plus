@@ -26,7 +26,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String _versionStatus = 'Checking...';
+  String _currentVersion = '-';
+  String _storeVersion = '-';
+  bool _canUpdate = false;
+  String _lastUpdateDate = '-';
+  String _releaseNotes = '-';
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -35,45 +40,70 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> checkNewVersion() async {
-    final newVersion = NewVersionPlus(
+    try {
+      final newVersion = NewVersionPlus(
         androidId: 'com.solu.mobsen', // Ganti dengan package ID milikmu
         iOSId:
             'com.your.ios.id', // Optional, kalau kamu juga publish ke App Store
-        androidHtmlReleaseNotes: true);
-
-    final status = await newVersion.getVersionStatus();
-    if (status == null) {
-      setState(() => _versionStatus = 'Gagal mengambil versi terbaru');
-      return;
-    }
-
-    setState(() {
-      _versionStatus = '''
-Current Version: ${status.localVersion}
-Store Version: ${status.storeVersion}
-Can Update: ${status.canUpdate}
-RELEASE UPDATE: ${status.lastUpdateDate}
-
-Release Notes: ${status.releaseNotes ?? 'Tidak ada'}
-''';
-    });
-
-    if (status.canUpdate) {
-      debugPrint('==== ${status.lastUpdateDate} data lastUpdate Info Aplikasi');
-
-      newVersion.showUpdateDialog(
-        context: context,
-        versionStatus: status,
-        dialogTitle: 'Update Tersedia',
-        dialogText:
-            'Versi terbaru ${status.storeVersion} sudah tersedia.\n\n${status.releaseNotes ?? ''}',
-        updateButtonText: 'Update Sekarang',
-        dismissButtonText: 'Nanti',
-        dismissAction: () {
-          Navigator.of(context).pop();
-        },
+        androidHtmlReleaseNotes:
+            true, // Optional, untuk menampilkan catatan rilis HTML
       );
+
+      final status = await newVersion.getVersionStatus();
+
+      if (status == null) {
+        setState(() {
+          _isLoading = false;
+          _currentVersion = 'Error';
+          _storeVersion = 'Gagal mengambil versi terbaru';
+        });
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _currentVersion = status.localVersion;
+        _storeVersion = status.storeVersion;
+        _canUpdate = status.canUpdate;
+        _lastUpdateDate = status.lastUpdateDate != null
+            ? '${status.lastUpdateDate!.day}/${status.lastUpdateDate!.month}/${status.lastUpdateDate!.year}'
+            : 'Tidak tersedia';
+        _releaseNotes = status.releaseNotes ?? 'Tidak ada catatan rilis';
+      });
+
+      // Show dialog automatically if update is available
+      if (status.canUpdate && mounted) {
+        _showUpdateDialog(newVersion, status);
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _currentVersion = 'Error';
+        _storeVersion = 'Terjadi kesalahan: $e';
+      });
     }
+  }
+
+  void _showUpdateDialog(NewVersionPlus newVersion, VersionStatus status) {
+    newVersion.showUpdateDialog(
+      context: context,
+      versionStatus: status,
+      dialogTitle: 'Update Tersedia',
+      dialogText: 'Versi terbaru ${status.storeVersion} sudah tersedia.',
+      updateButtonText: 'Update Sekarang',
+      dismissButtonText: 'Nanti',
+      // showReleaseNotes: true,
+      dismissAction: () {
+        Navigator.of(context).pop();
+      },
+    );
+  }
+
+  void _checkManually() {
+    setState(() {
+      _isLoading = true;
+    });
+    checkNewVersion();
   }
 
   @override
@@ -81,10 +111,158 @@ Release Notes: ${status.releaseNotes ?? 'Tidak ada'}
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cek Versi Aplikasi'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
       ),
-      body: Center(
-        child: Text(_versionStatus),
-      ),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Mengecek versi aplikasi...'),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Informasi Versi',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildInfoRow('Versi Saat Ini:', _currentVersion),
+                          const SizedBox(height: 8),
+                          _buildInfoRow('Versi di Store:', _storeVersion),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            'Status Update:',
+                            _canUpdate ? 'Tersedia Update' : 'Versi Terkini',
+                            valueColor:
+                                _canUpdate ? Colors.orange : Colors.green,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                              'Tanggal Update Terakhir:', _lastUpdateDate),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Catatan Rilis',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _releaseNotes,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _checkManually,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Cek Ulang'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  if (_canUpdate) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final newVersion = NewVersionPlus(
+                            androidId: 'com.g4sindonesia.gracia',
+                            iOSId: 'com.your.ios.id',
+                          );
+                          final status = await newVersion.getVersionStatus();
+                          if (status != null && mounted) {
+                            _showUpdateDialog(newVersion, status);
+                          }
+                        },
+                        icon: const Icon(Icons.system_update),
+                        label: const Text('Tampilkan Dialog Update'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 140,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
