@@ -40,6 +40,21 @@ class VersionStatus {
   // The Image Apps
   final String? appIconUrl;
 
+  /// App rating (1.0 - 5.0)
+  final double? ratingApp;
+
+  /// Number of ratings/reviews
+  final int? ratingCount;
+
+  /// Total download count (Android only, iOS doesn't provide this)
+  final String? downloadCount;
+
+  /// Age rating for the app (e.g., "4+", "12+", "17+" for iOS or "Everyone", "Teen", "Mature 17+" for Android)
+  final String? ageRating;
+
+  /// Content rating details (Android specific - e.g., "Rated for 3+", "Everyone 10+")
+  final String? contentRating;
+
   /// Returns `true` if the store version of the application is greater than the local version.
   bool get canUpdate {
     final local = localVersion.split('.').map(int.parse).toList();
@@ -75,6 +90,11 @@ class VersionStatus {
     this.appName,
     this.developerName,
     this.appIconUrl,
+    this.ratingApp,
+    this.ratingCount,
+    this.downloadCount,
+    this.ageRating,
+    this.contentRating,
   });
 
   VersionStatus._({
@@ -87,6 +107,11 @@ class VersionStatus {
     this.appName,
     this.developerName,
     this.appIconUrl,
+    this.ratingApp,
+    this.ratingCount,
+    this.downloadCount,
+    this.ageRating,
+    this.contentRating,
   });
 }
 
@@ -122,8 +147,8 @@ class NewVersionPlus {
   //Html original body request
   final bool androidHtmlReleaseNotes;
 
-  /// The last update date of the store version (only available for iOS)
-  final DateTime? lastUpdateDate;
+  // /// The last update date of the store version (only available for iOS)
+  // final DateTime? lastUpdateDate;
 
   NewVersionPlus({
     this.androidId,
@@ -132,7 +157,7 @@ class NewVersionPlus {
     this.forceAppVersion,
     this.androidPlayStoreCountry,
     this.androidHtmlReleaseNotes = false,
-    this.lastUpdateDate,
+    // this.lastUpdateDate,
   });
 
   /// This checks the version status, then displays a platform-specific alert
@@ -215,6 +240,91 @@ class NewVersionPlus {
       return null;
     }
 
+    // Extract age rating from iOS App Store
+    String? ageRating;
+    String? contentRating;
+
+    try {
+      // Method 1: Extract from contentAdvisoryRating
+      final contentAdvisoryRating =
+          jsonObj['results'][0]['contentAdvisoryRating'];
+      if (contentAdvisoryRating != null) {
+        ageRating = contentAdvisoryRating.toString();
+        debugPrint('iOS Age Rating (Advisory): $ageRating');
+      }
+
+      // Method 2: Extract from trackContentRating
+      if (ageRating == null || ageRating.isEmpty) {
+        final trackContentRating = jsonObj['results'][0]['trackContentRating'];
+        if (trackContentRating != null) {
+          ageRating = trackContentRating.toString();
+          debugPrint('iOS Age Rating (Track): $ageRating');
+        }
+      }
+
+      // Method 3: Extract from advisories array
+      if (ageRating == null || ageRating.isEmpty) {
+        final advisories = jsonObj['results'][0]['advisories'];
+        if (advisories != null && advisories is List && advisories.isNotEmpty) {
+          ageRating = advisories.join(', ');
+          debugPrint('iOS Age Rating (Advisories): $ageRating');
+        }
+      }
+
+      // Method 4: Extract age rating from description or other fields
+      if (ageRating == null || ageRating.isEmpty) {
+        // Sometimes age rating is embedded in other fields
+        final description = jsonObj['results'][0]['description'];
+        if (description != null) {
+          final agePattern = RegExp(r'(\d+\+|\bEveryone\b|\bTeen\b|\bMature\b)',
+              caseSensitive: false);
+          final ageMatch = agePattern.firstMatch(description.toString());
+          if (ageMatch != null) {
+            ageRating = ageMatch.group(1);
+            debugPrint('iOS Age Rating (Description): $ageRating');
+          }
+        }
+      }
+
+      // Set content rating same as age rating for iOS
+      contentRating = ageRating;
+
+      debugPrint('Final iOS Age Rating: $ageRating');
+      debugPrint('Final iOS Content Rating: $contentRating');
+    } catch (e) {
+      debugPrint('Failed to extract age rating from iOS: $e');
+    }
+
+    double? ratingApp;
+    int? ratingCount;
+
+    try {
+      // Get average user rating (0-5 scale)
+      final averageUserRating = jsonObj['results'][0]['averageUserRating'];
+      if (averageUserRating != null) {
+        ratingApp = double.tryParse(averageUserRating.toString());
+      }
+
+      // Get rating count for current version
+      final userRatingCountForCurrentVersion =
+          jsonObj['results'][0]['userRatingCountForCurrentVersion'];
+      if (userRatingCountForCurrentVersion != null) {
+        ratingCount = int.tryParse(userRatingCountForCurrentVersion.toString());
+      }
+
+      // If current version rating count is null or 0, try to get overall rating count
+      if (ratingCount == null || ratingCount == 0) {
+        final userRatingCount = jsonObj['results'][0]['userRatingCount'];
+        if (userRatingCount != null) {
+          ratingCount = int.tryParse(userRatingCount.toString());
+        }
+      }
+
+      debugPrint('iOS App Rating: $ratingApp');
+      debugPrint('iOS Rating Count: $ratingCount');
+    } catch (e) {
+      debugPrint('Failed to extract rating information from iOS: $e');
+    }
     // Parse last update date from currentVersionReleaseDate
     DateTime? lastUpdateDate;
     try {
@@ -262,6 +372,11 @@ class NewVersionPlus {
       appName: appName,
       developerName: developerName,
       appIconUrl: appIconUrl,
+      ratingApp: ratingApp,
+      ratingCount: ratingCount,
+      downloadCount: null,
+      ageRating: ageRating, // Add this
+      contentRating: contentRating, // Add this
     );
   }
 
@@ -498,6 +613,222 @@ class NewVersionPlus {
           'Failed to extract app name or developer name from Android: $e');
     }
 
+    // Extract age rating from Google Play Store
+    String? ageRating;
+    String? contentRating;
+
+    try {
+      // Method 1: Look for content rating in structured data
+      final contentRatingPatterns = [
+        RegExp(r'"contentRating"\s*:\s*"([^"]+)"', caseSensitive: false),
+        RegExp(r'"ratingValue"\s*:\s*"([^"]+)"', caseSensitive: false),
+        RegExp(r'Rated for (\d+\+)', caseSensitive: false),
+        RegExp(r'Ages (\d+\+)', caseSensitive: false),
+      ];
+
+      for (final pattern in contentRatingPatterns) {
+        final match = pattern.firstMatch(response.body);
+        if (match != null) {
+          contentRating = match.group(1)?.trim();
+          debugPrint('Found content rating: $contentRating');
+          break;
+        }
+      }
+
+      // Method 2: Look for ESRB/PEGI ratings
+      final esrbPatterns = [
+        RegExp(
+            r'\b(Everyone|Everyone 10\+|Teen|Mature 17\+|Adults Only 18\+)\b',
+            caseSensitive: false),
+        RegExp(r'\b(E|E10\+|T|M|AO)\b'),
+        RegExp(r'ESRB:\s*([^<\n]+)', caseSensitive: false),
+      ];
+
+      for (final pattern in esrbPatterns) {
+        final match = pattern.firstMatch(response.body);
+        if (match != null) {
+          ageRating = match.group(1)?.trim();
+          debugPrint('Found ESRB rating: $ageRating');
+          break;
+        }
+      }
+
+      // Method 3: Look for age rating in meta tags
+      if (ageRating == null || ageRating.isEmpty) {
+        final metaRatingPatterns = [
+          RegExp(r'<meta[^>]*name=".*rating.*"[^>]*content="([^"]+)"',
+              caseSensitive: false),
+          RegExp(r'<meta[^>]*property=".*rating.*"[^>]*content="([^"]+)"',
+              caseSensitive: false),
+        ];
+
+        for (final pattern in metaRatingPatterns) {
+          final match = pattern.firstMatch(response.body);
+          if (match != null) {
+            final rating = match.group(1)?.trim();
+            if (rating != null && rating.isNotEmpty) {
+              ageRating = rating;
+              debugPrint('Found meta rating: $ageRating');
+              break;
+            }
+          }
+        }
+      }
+
+      // Method 4: Look for common age indicators in the page
+      if (ageRating == null || ageRating.isEmpty) {
+        final ageIndicatorPatterns = [
+          RegExp(r'(\d+)\+', caseSensitive: false),
+          RegExp(r'Ages (\d+) and up', caseSensitive: false),
+          RegExp(r'Suitable for ages (\d+)\+', caseSensitive: false),
+        ];
+
+        for (final pattern in ageIndicatorPatterns) {
+          final matches = pattern.allMatches(response.body);
+          for (final match in matches) {
+            final age = match.group(1);
+            if (age != null) {
+              final ageNum = int.tryParse(age);
+              if (ageNum != null && ageNum >= 0 && ageNum <= 18) {
+                ageRating = '$age+';
+                debugPrint('Found age indicator: $ageRating');
+                break;
+              }
+            }
+          }
+          if (ageRating != null) break;
+        }
+      }
+
+      // Method 5: Look for rating in JavaScript data
+      if (ageRating == null || ageRating.isEmpty) {
+        final jsRatingPattern = RegExp(r'"contentRating":\s*"([^"]+)"');
+        final jsMatch = jsRatingPattern.firstMatch(response.body);
+        if (jsMatch != null) {
+          ageRating = jsMatch.group(1)?.trim();
+          debugPrint('Found JS rating: $ageRating');
+        }
+      }
+
+      // Set default content rating if not found
+      if (contentRating == null || contentRating.isEmpty) {
+        contentRating = ageRating;
+      }
+
+      // Clean up ratings
+      if (ageRating != null) {
+        ageRating = ageRating
+            .replaceAll(RegExp(r'<[^>]*>'), '') // Remove HTML tags
+            .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
+            .trim();
+
+        if (ageRating.isEmpty) ageRating = null;
+      }
+
+      if (contentRating != null) {
+        contentRating = contentRating
+            .replaceAll(RegExp(r'<[^>]*>'), '') // Remove HTML tags
+            .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
+            .trim();
+
+        if (contentRating.isEmpty) contentRating = null;
+      }
+
+      debugPrint('Final Android Age Rating: $ageRating');
+      debugPrint('Final Android Content Rating: $contentRating');
+    } catch (e) {
+      debugPrint('Failed to extract age rating from Android: $e');
+    }
+
+    // Extract rating and rating count from Google Play Store
+    double? rating;
+    int? ratingCount;
+    String? downloadCount;
+
+    try {
+      // Method 1: Extract rating from structured data
+      final ratingPatterns = [
+        RegExp(r'"ratingValue"\s*:\s*"?([0-9.]+)"?'),
+        RegExp(r'"aggregateRating"[^}]*"ratingValue"\s*:\s*"?([0-9.]+)"?'),
+        RegExp(r'star.*?([0-9.]+)', caseSensitive: false),
+      ];
+
+      for (final pattern in ratingPatterns) {
+        final match = pattern.firstMatch(response.body);
+        if (match != null) {
+          rating = double.tryParse(match.group(1)!);
+          if (rating != null) {
+            debugPrint('Found rating from pattern: $rating');
+            break;
+          }
+        }
+      }
+
+      // Method 2: Extract rating count
+      final ratingCountPatterns = [
+        RegExp(r'"ratingCount"\s*:\s*"?([0-9,]+)"?'),
+        RegExp(r'"reviewCount"\s*:\s*"?([0-9,]+)"?'),
+        RegExp(r'([0-9,]+)\s*reviews?', caseSensitive: false),
+        RegExp(r'([0-9,]+)\s*ratings?', caseSensitive: false),
+      ];
+
+      for (final pattern in ratingCountPatterns) {
+        final match = pattern.firstMatch(response.body);
+        if (match != null) {
+          final countStr = match.group(1)!.replaceAll(',', '');
+          ratingCount = int.tryParse(countStr);
+          if (ratingCount != null) {
+            debugPrint('Found rating count from pattern: $ratingCount');
+            break;
+          }
+        }
+      }
+
+      // Method 3: Extract download count
+      final downloadPatterns = [
+        RegExp(r'([0-9,]+\+?)\s*downloads?', caseSensitive: false),
+        RegExp(r'([0-9,]+\+?)\s*installs?', caseSensitive: false),
+        RegExp(r'"interactionCount"\s*:\s*"([0-9,]+\+?)"'),
+      ];
+
+      for (final pattern in downloadPatterns) {
+        final match = pattern.firstMatch(response.body);
+        if (match != null) {
+          downloadCount = match.group(1)!;
+          debugPrint('Found download count: $downloadCount');
+          break;
+        }
+      }
+
+      // Method 4: Alternative extraction from page content
+      if (rating == null || ratingCount == null) {
+        // Look for rating in JavaScript data structures
+        final jsRatingPattern = RegExp(r'\[\s*([0-9.]+)\s*,\s*([0-9,]+)\s*\]');
+        final jsMatches = jsRatingPattern.allMatches(response.body);
+
+        for (final match in jsMatches) {
+          final potentialRating = double.tryParse(match.group(1)!);
+          final potentialCount =
+              int.tryParse(match.group(2)!.replaceAll(',', ''));
+
+          if (potentialRating != null &&
+              potentialRating >= 1.0 &&
+              potentialRating <= 5.0) {
+            rating ??= potentialRating;
+            ratingCount ??= potentialCount;
+            debugPrint('Found rating from JS: $rating, count: $ratingCount');
+            break;
+          }
+        }
+      }
+
+      debugPrint('Final Android App Rating: $rating');
+      debugPrint('Final Android Rating Count: $ratingCount');
+      debugPrint('Final Android Download Count: $downloadCount');
+    } catch (e) {
+      debugPrint('Failed to extract rating information from Android: $e');
+    }
+
     // Method untuk mendukung parsing tanggal Android dengan bahasa Indonesia
 // Ganti seluruh bagian "Extract last update date for Android" di method _getAndroidStoreVersion
 // mulai dari baris "DateTime? lastUpdateDate;" sampai "debugPrint('Final lastUpdateDate: $lastUpdateDate');"
@@ -674,6 +1005,11 @@ class NewVersionPlus {
       appName: appName,
       developerName: developerName,
       appIconUrl: appIconUrl,
+      ratingApp: rating,
+      ratingCount: ratingCount,
+      downloadCount: downloadCount,
+      ageRating: ageRating, // Add this
+      contentRating: contentRating, // Add this
     );
   }
 

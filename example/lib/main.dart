@@ -1,4 +1,6 @@
 // import 'package:example/cache_images.dart';
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:new_version_plus/new_version_plus.dart';
@@ -33,7 +35,14 @@ class _HomePageState extends State<HomePage> {
       _lastUpdateDate = '-',
       _releaseNotes = '-',
       _nameApk = '-',
-      _nameDevelop = '-';
+      _nameDevelop = '-',
+      _downloadCount = '-',
+      _ageRating = '-',
+      _contentRating = '-';
+
+  double? _ratingApk;
+
+  int? _ratingCount;
 
   String? _imageApp;
 
@@ -48,7 +57,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> checkNewVersion() async {
     try {
       final newVersion = NewVersionPlus(
-        androidId: 'com.solu.mobsen', // Ganti dengan package ID milikmu
+        androidId: 'com.hamilton.app', // Ganti dengan package ID milikmu
         iOSId:
             'com.your.ios.id', // Optional, kalau kamu juga publish ke App Store
         androidHtmlReleaseNotes:
@@ -80,9 +89,22 @@ class _HomePageState extends State<HomePage> {
         _nameApk = status.appName ?? 'Tidak ada Name APk';
         _nameDevelop = status.developerName ?? 'Tidak ada Name DEv';
         _nameDevelop = status.appIconUrl ?? '';
-        _imageApp = status.appIconUrl ?? ''; // Ini yang diperbaiki
+        _imageApp = status.appIconUrl ?? '';
+        _downloadCount = status.downloadCount ?? '';
+        _ratingApk = status.ratingApp;
+        _ratingCount = status.ratingCount;
+        _ageRating = status.ageRating ?? '';
+        _contentRating = status.contentRating ?? '';
+
         debugPrint('===== Nama $_nameDevelop, _nameApk');
         debugPrint('===== Image $_imageApp, imageAPp');
+
+        debugPrint('====== Rating APK $_ratingApk');
+        debugPrint('====== Download COUNT $_downloadCount');
+        debugPrint('====== Rating Count $_ratingCount');
+
+        debugPrint('===== Age Rating $_ageRating');
+        debugPrint('===== COntent Rating $_contentRating');
       });
 
       // Show dialog automatically if update is available
@@ -158,7 +180,6 @@ class _HomePageState extends State<HomePage> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 16),
                           _buildInfoRow('Versi Saat Ini:', _currentVersion),
                           const SizedBox(height: 8),
                           _buildInfoRow('Versi di Store:', _storeVersion),
@@ -173,6 +194,51 @@ class _HomePageState extends State<HomePage> {
                           _buildInfoRow(
                               'Tanggal Update Terakhir:', _lastUpdateDate),
                           _buildInfoRow('Name APK:', _nameApk),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'Age Rating:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              _ageRating.isNotEmpty
+                                  ? _buildAgeRatingBadge(_ageRating)
+                                  : const Text('Tidak tersedia'),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'Content Rating:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  _contentRating.isNotEmpty
+                                      ? _contentRating
+                                      : 'Tidak tersedia',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+
                           const SizedBox(height: 20),
                           Row(
                             children: [
@@ -277,6 +343,34 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildAgeRatingBadge(String rating) {
+    // Ekstrak angka dari string seperti "Rated for 3+"
+    final match = RegExp(r'(\d{1,2}\+)').firstMatch(rating);
+    final ageText = match?.group(0) ?? '-';
+
+    return Row(
+      children: [
+        CircleAvatar(
+          backgroundColor: Colors.blue.shade100,
+          radius: 16,
+          child: Text(
+            ageText,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          rating,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+      ],
     );
   }
 
