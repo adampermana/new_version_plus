@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final newVersion = NewVersionPlus(
-        androidId: 'com.solu.mobsen', // Replace with your package ID
+        androidId: 'com.hamilton.app', // Replace with your package ID
         iOSId: 'com.your.ios.id', // Replace with your iOS app ID
         androidHtmlReleaseNotes: true,
         androidPlayStoreCountry: 'id',
@@ -300,7 +300,7 @@ class _HomePageState extends State<HomePage> {
                         label: const Text('Show Update Dialog'),
                         onPressed: () async {
                           final newVersion = NewVersionPlus(
-                            androidId: 'com.solu.mobsen',
+                            androidId: 'com.hamilton.app',
                             iOSId: 'com.your.ios.id',
                           );
                           final status = await newVersion.getVersionStatus();
