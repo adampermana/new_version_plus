@@ -1,72 +1,162 @@
-<a href="https://www.buymeacoffee.com/codesfirst" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+# 🚀 New Version Plus Plugin
 
-Note
-Original repository: https://pub.dev/packages/new_version
+Enhanced fork of the original [`new_version`](https://github.com/CodesFirst/new_version) plugin by **Peter Herrera**, with additional features and ongoing maintenance by **Adam Permana**.
 
-The problem with the original repository is that it will no longer be maintained by the creator, for this reason this repository was created in order to maintain updated code and make respective improvements as long as it is required.
+---
 
-# New Version Plus Plugin 🎉
+## 📌 Project Status
 
-A Flutter plugin that makes it possible to:
+| Attribute           | Information                                   |
+|---------------------|-----------------------------------------------|
+| Original Author     | Peter Herrera ([@CodesFirst](https://github.com/CodesFirst)) |
+| Current Maintainer  | Adam Permana ([@adampermana](https://github.com/adampermana)) |
+| Original Repository | [github.com/CodesFirst/new_version](https://github.com/CodesFirst/new_version) |
+| Fork Reason         | Original repository is no longer maintained  |
 
-- Check if a user has the most recent version of your app installed.
-- Show the user an alert with a link to the appropriate app store page.
+---
 
-See more at the [Dart Packages page.](https://pub.dartlang.org/packages/new_version_plus)
+## 🌟 Enhanced Features
 
-![Screenshots](screenshots/both.png)
+✅ **Extended Metadata Support**
+- App icons  
+- Developer information  
+- Ratings and review counts  
+- Download statistics  
+- Age/content ratings  
 
-## Installation
+✅ **Improved Localization**
+- Better date parsing (international support)  
+- Multilingual release note support  
 
-Add new_version_plus as [a dependency in your `pubspec.yaml` file.](https://flutter.io/using-packages/)
+✅ **Advanced Release Notes**
+- HTML formatting  
+- Cleaned and readable text  
 
-```
+✅ **Additional Platform Support**
+- Custom country codes (Play Store & App Store)  
+- Enhanced error handling  
+
+---
+
+## 📦 Installation
+
+Add the following to your `pubspec.yaml`:
+
+```yaml
 dependencies:
-  new_version_plus: ^0.0.9
+  new_version_plus:
+    git:
+      url: https://github.com/adampermana/new_version_plus.git
+      ref: main
 ```
 
-## Usage
+---
 
-In `main.dart` (or wherever your app is initialized), create an instance of `NewVersionPlus`.
+## 🛠️ Basic Usage
 
-`final newVersionPlus = NewVersionPlus();`
+### 1. Initialize the Plugin
 
-The plugin will automatically use your Flutter package identifier to check the app store. If your app has a different identifier in the Google Play Store or Apple App Store, you can overwrite this by providing values for `androidId` and/or `iOSId`.
-
-_For iOS:_ If your app is only available outside the U.S. App Store, you will need to set `iOSAppStoreCountry` to the two-letter country code of the store you want to search. See http://en.wikipedia.org/wiki/ISO_3166-1_alpha-2 for a list of ISO Country Codes.
-
-You can then use the plugin in two ways.
-
-### Quickstart
-
-Calling `showAlertIfNecessary` with your app's `BuildContext` will check if the app can be updated, and will automatically display a platform-specific alert that the user can use to go to the app store.
-
-`newVersionPlus.showAlertIfNecessary(context: context);`
-
-### Advanced 😎
-
-If you want to create a custom alert or use the app version information differently, call `getVersionStatus`. This will return a `Future<VersionStatus>` with information about the local and app store versions of the app.
-
-```
-final status = await newVersionPlus.getVersionStatus();
-status.canUpdate // (true)
-status.localVersion // (1.2.1)
-status.storeVersion // (1.2.3)
-status.appStoreLink // (https://itunes.apple.com/us/app/google/id284815942?mt=8)
+```dart
+final newVersion = NewVersionPlus(
+  androidId: 'com.example.app',          // Optional
+  iOSId: 'com.example.app',              // Optional
+  androidPlayStoreCountry: 'id',         // Optional
+  iOSAppStoreCountry: 'us',              // Optional
+);
 ```
 
-If you want to present a customized dialog, you can pass your `VersionStatus` to `showUpdateDialog()`.
+### 2. Check for Updates (Simple)
 
+```dart
+newVersion.showAlertIfNecessary(context: context);
 ```
-newVersionPlus.showUpdateDialog(
+
+### 3. Advanced Usage with Custom Dialog
+
+```dart
+final status = await newVersion.getVersionStatus();
+
+if (status != null && status.canUpdate) {
+  newVersion.showUpdateDialog(
+    context: context,
+    versionStatus: status,
+    dialogTitle: 'Update Available',
+    dialogText: 'New version ${status.storeVersion} is available!',
+    updateButtonText: 'Update Now',
+    dismissButtonText: 'Later',
+  );
+}
+```
+
+---
+
+## 📊 `VersionStatus` Properties
+
+| Property         | Type        | Description                         |
+|------------------|-------------|-------------------------------------|
+| `localVersion`   | `String`    | Current app version                 |
+| `storeVersion`   | `String`    | Latest version on store             |
+| `appStoreLink`   | `String`    | URL to the app store                |
+| `releaseNotes`   | `String?`   | HTML-formatted release notes        |
+| `lastUpdateDate` | `DateTime?` | Date of the latest update           |
+| `appName`        | `String?`   | Name of the app                     |
+| `developerName`  | `String?`   | Publisher/Developer name            |
+| `appIconUrl`     | `String?`   | Icon URL from the store             |
+| `ratingApp`      | `double?`   | Rating (1.0 - 5.0)                  |
+| `ratingCount`    | `int?`      | Number of user ratings              |
+| `downloadCount`  | `String?`   | Total downloads (Play Store only)   |
+| `ageRating`      | `String?`   | Age restriction (App Store)         |
+| `contentRating`  | `String?`   | Content description (Play Store)    |
+
+---
+
+## 🌍 Country Code Support
+
+For region-specific stores, you can customize:
+
+```dart
+NewVersionPlus(
+  androidPlayStoreCountry: 'id', // Example: Indonesia
+  iOSAppStoreCountry: 'jp',     // Example: Japan
+);
+```
+
+---
+
+## 🎨 Customization Options
+
+```dart
+showUpdateDialog(
   context: context,
   versionStatus: status,
-  dialogTitle: 'Custom dialog title',
-  dialogText: 'Custom dialog text',
-  updateButtonText: 'Custom update button text',
-  dismissButtonText: 'Custom dismiss button text',
-  dismissAction: () => functionToRunAfterDialogDismissed(),
-)
+  dialogTitle: 'Custom Title',
+  dialogText: 'Custom message',
+  updateButtonText: 'Upgrade',
+  dismissButtonText: 'Not Now',
+  allowDismissal: false,
+  launchModeVersion: LaunchModeVersion.external, // Open store in browser
+);
 ```
 
-The option was added so that in the android app you can modify the code of your country, with the variable: `androidPlayStoreCountry`
+---
+
+## 📸 Screenshots
+
+> _(Add screenshots here if available for illustration)_
+
+![Screenshots](screenshots/both.png)
+---
+
+## 🤝 Contribution
+
+Contributions are welcome! You can help by:
+- Reporting bugs
+- Suggesting features
+- Improving documentation
+- Creating pull requests
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**, same as the original.
