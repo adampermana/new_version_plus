@@ -1,7 +1,10 @@
 name: new_version_plus
 description: Check if your user has the most recent version of your Flutter app.
 version: 0.1.2
-homepage: https://github.com/CodesFirst/new_version_plus
+homepage: https://github.com/adampermana/new_version_plus
+repository: https://github.com/adampermana/new_version_plus.git
+issue_tracker: https://github.com/adampermana/new_version_plus/issues
+topics: [flutter, plugin, version-check, in-app-update, release-notes]
 
 environment:
   sdk: ^3.4.0
