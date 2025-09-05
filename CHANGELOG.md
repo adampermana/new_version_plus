@@ -1,4 +1,4 @@
-#### Version oiginal:
+## 0.1.1:
 
 - #117: Make compatible with new Play Store UI
 - #75: Add `forceAppVersion` field to make testing easier.
