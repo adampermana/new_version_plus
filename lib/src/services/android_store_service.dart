@@ -53,7 +53,7 @@ class AndroidStoreService {
     final lastUpdateDate =
         _extractLastUpdateDate(response.body, androidPlayStoreCountry);
 
-    return VersionStatus(
+    return VersionStatus.fromStore(
       localVersion: StringUtils.getCleanVersion(packageInfo.version),
       storeVersion:
           StringUtils.getCleanVersion(forceAppVersion ?? storeVersion ?? ""),
@@ -121,7 +121,9 @@ class AndroidStoreService {
         if (url != null && !url.startsWith('http')) {
           if (url.startsWith('//')) {
             url = 'https:$url';
-          } else if (url.startsWith('/')) url = 'https://play.google.com$url';
+          } else if (url.startsWith('/')) {
+            url = 'https://play.google.com$url';
+          }
         }
         return url;
       }

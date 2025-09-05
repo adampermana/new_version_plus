@@ -176,7 +176,7 @@ class IosStoreService {
       debugPrint('Failed to extract app name or developer name from iOS: $e');
     }
 
-    return VersionStatus(
+    return VersionStatus.fromStore(
       localVersion: StringUtils.getCleanVersion(packageInfo.version),
       storeVersion: StringUtils.getCleanVersion(
           forceAppVersion ?? jsonObj['results'][0]['version']),

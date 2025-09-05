@@ -67,24 +67,6 @@ class VersionStatus {
     return false;
   }
 
-  //Public Contructor
-  VersionStatus({
-    required this.localVersion,
-    required this.storeVersion,
-    required this.appStoreLink,
-    this.releaseNotes,
-    this.originalStoreVersion,
-    this.lastUpdateDate,
-    this.appName,
-    this.developerName,
-    this.appIconUrl,
-    this.ratingApp,
-    this.ratingCount,
-    this.downloadCount,
-    this.ageRating,
-    this.contentRating,
-  });
-
   VersionStatus._({
     required this.localVersion,
     required this.storeVersion,
@@ -101,4 +83,73 @@ class VersionStatus {
     this.ageRating,
     this.contentRating,
   });
+
+  factory VersionStatus.fromStore({
+    required String localVersion,
+    required String storeVersion,
+    required String appStoreLink,
+    String? originalStoreVersion,
+    String? releaseNotes,
+    DateTime? lastUpdateDate,
+    String? appName,
+    String? developerName,
+    String? appIconUrl,
+    double? ratingApp,
+    int? ratingCount,
+    String? downloadCount,
+    String? ageRating,
+    String? contentRating,
+  }) {
+    return VersionStatus._(
+      localVersion: localVersion,
+      storeVersion: storeVersion,
+      appStoreLink: appStoreLink,
+      originalStoreVersion: originalStoreVersion, // ← sekarang “diberikan”
+      releaseNotes: releaseNotes,
+      lastUpdateDate: lastUpdateDate,
+      appName: appName,
+      developerName: developerName,
+      appIconUrl: appIconUrl,
+      ratingApp: ratingApp,
+      ratingCount: ratingCount,
+      downloadCount: downloadCount,
+      ageRating: ageRating,
+      contentRating: contentRating,
+    );
+  }
+
+  VersionStatus copyWith({
+    String? localVersion,
+    String? storeVersion,
+    String? appStoreLink,
+    String? originalStoreVersion,
+    String? releaseNotes,
+    DateTime? lastUpdateDate,
+    String? appName,
+    String? developerName,
+    String? appIconUrl,
+    double? ratingApp,
+    int? ratingCount,
+    String? downloadCount,
+    String? ageRating,
+    String? contentRating,
+  }) {
+    return VersionStatus._(
+      localVersion: localVersion ?? this.localVersion,
+      storeVersion: storeVersion ?? this.storeVersion,
+      appStoreLink: appStoreLink ?? this.appStoreLink,
+      originalStoreVersion:
+          originalStoreVersion ?? this.originalStoreVersion, // ← dipakai
+      releaseNotes: releaseNotes ?? this.releaseNotes,
+      lastUpdateDate: lastUpdateDate ?? this.lastUpdateDate,
+      appName: appName ?? this.appName,
+      developerName: developerName ?? this.developerName,
+      appIconUrl: appIconUrl ?? this.appIconUrl,
+      ratingApp: ratingApp ?? this.ratingApp,
+      ratingCount: ratingCount ?? this.ratingCount,
+      downloadCount: downloadCount ?? this.downloadCount,
+      ageRating: ageRating ?? this.ageRating,
+      contentRating: contentRating ?? this.contentRating,
+    );
+  }
 }

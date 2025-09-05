@@ -84,7 +84,7 @@ class NewVersionPlus {
     LaunchModeVersion launchModeVersion = LaunchModeVersion.normal,
   }) async {
     final VersionStatus? versionStatus = await getVersionStatus();
-
+    if (!context.mounted) return;
     if (versionStatus != null && versionStatus.canUpdate) {
       showUpdateDialog(
         context: context,
@@ -165,8 +165,8 @@ class NewVersionPlus {
       barrierDismissible: allowDismissal,
       builder: (BuildContext context) {
         if (Platform.isAndroid) {
-          return WillPopScope(
-            onWillPop: () async => allowDismissal,
+          return PopScope(
+            canPop: allowDismissal,
             child: AlertDialog(
               title: dialogTitleWidget,
               content: dialogTextWidget,

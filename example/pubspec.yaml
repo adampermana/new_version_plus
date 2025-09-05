@@ -38,7 +38,7 @@ dependencies:
   new_version_plus:
     path: ../
   cached_network_image: ^3.4.1
-  intl: ^0.19.0
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
