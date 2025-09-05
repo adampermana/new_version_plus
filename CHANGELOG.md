@@ -1,3 +1,10 @@
+## 0.1.2:
+
+**Fixed**
+- Lint: avoid_unused_parameters on private constructor VersionStatus._ (used via factory/copyWith or removed if not needed).
+**Dependencies**
+- `intl` bumped: **^0.19.0 → ^0.20.2**.
+
 ## 0.1.1:
 
 - #117: Make compatible with new Play Store UI
